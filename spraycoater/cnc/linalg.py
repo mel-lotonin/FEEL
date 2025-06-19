@@ -1,12 +1,10 @@
-# Python g-code library
 import math
-
 from pygcode import *
 # Number library
 import numpy as np
 
 
-class Path:
+class Point:
     pass
 
 
@@ -22,16 +20,14 @@ class LinearTransform:
         """
         self.name = name
 
-    def transform(self, path: Path) -> Path:
+    def transform(self, path: Point) -> Point:
         """
         Transform a set of points
         :param path: Set of points to transform
         :return: Set of transformed points
         """
-        p = Path([])
         q = self._transform_matrix()
-        p.path = path.path @ q
-        return p
+        return Point(path.vec @ q)
 
     def _transform_matrix(self) -> np.ndarray:
         raise NotImplementedError()
@@ -206,72 +202,3 @@ class RotateAxis(LinearTransform):
               u.z() ** 2 * (1 - math.cos(a)) + math.cos(a), 0],
              [0, 0, 0, 1]
              ])
-
-
-class Path:
-    """
-    Vector path
-    """
-
-    def __init__(self, points: list[Point] | np.ndarray):
-        self.path = np.array([point.vec for point in points]) if isinstance(points, list) else points
-
-    def gcode(self) -> list[GCode]:
-        return [Point(arr).fast_to() for arr in self.path]
-
-    def __eq__(self, value) -> bool:
-        return (self.path == value.path).all()
-
-
-def serp(dims: tuple[int, int], stride: float, offset: Point, rotate: bool = False) -> Path:
-    """
-    Create a serpentine path with a given frequency and offset
-    :param dims: Dimensions of the serpentine
-    :param stride: Stride between lines
-    :param offset: Position offset
-    :return: Serpentine path
-    """
-    path = []  # 1x1 serpentine path
-
-    # Scale to correct size
-    width, height = dims
-
-    # Create 1x1 path with given stride
-    alternate = False  # Alternate side flag
-    x = 0
-    ds = stride / (width if not rotate else height)
-    while x < 1:
-        if alternate:
-            path.append(Point([x, 0]))
-            path.append(Point([x, 1]))
-        else:
-            path.append(Point([x, 1]))
-            path.append(Point([x, 0]))
-        x += ds
-        alternate = not alternate
-
-    path = Path(path)  # Convert to path object for transformation
-
-    # Rotate path and reflect along y-axis
-    path = path if not rotate else Scale(Point([1, -1, 1])).transform(RotateZ(90).transform(path))
-
-    return Translate(offset).transform(Scale(Point([width, height, 1])).transform(path))
-
-
-# Preamble for the g-code script
-preamble = [
-    GCodeAbsoluteDistanceMode(),
-    GCodeUseMillimeters(),
-    GCodeFeedRate(5000),
-    GCodeLinearMove(Z=0),
-    GCodeLinearMove(X=0, Y=0)
-]
-
-gcodes = preamble + serp((36, 200), 2, Point([0, -200//2])).gcode() \
-        + serp((200, 14), 2, Point([-200/2, 0]), rotate=True).gcode() \
-        #+ serp((35, 14), 2, Point([1, 0])).gcode() \
-        #+ serp((36, 13), 2, Point([0, 1]), rotate=True).gcode()
-# Print G-Codes
-
-with open("gcode.nc", "w") as file:
-    file.write('\n'.join(str(gcode) for gcode in gcodes))
