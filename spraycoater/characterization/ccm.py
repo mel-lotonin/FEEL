@@ -2,18 +2,18 @@ import numpy as np
 import pandas as pd
 import skimage as sk
 import matplotlib.pyplot as plt
+from matplotlib import patches
 from scipy.stats import linregress
 import json
 
 
 def plot_map(map, bar):
-    plt.figure(figsize=(8, 6))
-    plt.imshow(map, cmap='YlGnBu')
-    plt.colorbar(label=bar)
-    plt.title('Heatmap')
-    plt.axis('off')
-    plt.tight_layout()
-    plt.show()
+    fig, ax = plt.subplots(figsize=(8, 6))
+    map = ax.imshow(map, cmap='YlGnBu')
+    fig.colorbar(map, label=bar)
+    ax.set_title('Heatmap')
+    ax.set_axis_off()
+    return fig, ax
 
 
 def detect_references(count_map, ref_loadings):
@@ -73,6 +73,13 @@ def main():
     print(f'Detected References: {json.dumps(references,indent=4)}')
     print(f"Calibration: [pt] = {slope:.4f}c + {intercept:.4f}")
     print(f"R = {r_value:.4f}, STD-err = {std_err:.4f}")
+
+    fig, ax = plot_map(count_map, "counts")
+    for reference in references:
+        ax.add_patch(patches.Circle(reference['pos'], radius=reference['radius'], color='red', fill=False))
+    fig.tight_layout()
+    fig.show()
+
     pass
 
 
