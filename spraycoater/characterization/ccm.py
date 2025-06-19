@@ -9,7 +9,7 @@ import json
 
 def plot_map(map, bar):
     fig, ax = plt.subplots(figsize=(8, 6))
-    map = ax.imshow(map, cmap='YlGnBu')
+    map = ax.imshow(map, cmap='cool')   # YlGnBu
     fig.colorbar(map, label=bar)
     ax.set_title('Heatmap')
     ax.set_axis_off()
@@ -18,8 +18,11 @@ def plot_map(map, bar):
 
 def detect_references(count_map, ref_loadings):
     # Smooth map to remove noise and normalize the image
-    smoothed_map = sk.filters.gaussian(count_map, sigma=3)
+    smoothed_map = sk.filters.gaussian(count_map)
     normalized = (smoothed_map - smoothed_map.min()) / (np.ptp(smoothed_map))
+
+    fig, ax = plot_map(normalized, "counts")
+    fig.show()
 
     # Edge detection
     edge_map = sk.feature.canny(normalized, sigma=1)
@@ -64,8 +67,8 @@ def main():
     counts_df = pd.read_csv("in/count_map.txt", sep=';', header=None)
     count_map = counts_df.to_numpy()
 
-    # 22.3
-    references = detect_references(count_map, [60, 102.8])
+    # 22.3, 60, 102.8
+    references = detect_references(count_map, [53, 82.5])
 
     # Linear regression: fit line to (counts → µg/cm²)
     slope, intercept, r_value, p_value, std_err = linregress([ref['counts'] for ref in references],

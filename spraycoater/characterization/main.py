@@ -27,7 +27,7 @@ def rectangular_mask(shape, bounds):
 
 
 # Load Data
-data = pd.read_csv("in/count_map.txt", sep=';', header=None)
+data = pd.read_csv("in/count_map2.txt", sep=';', header=None)
 count_map = data.to_numpy()  # Convert to numpy array for processing
 
 # Plot heatmap using 'cool' colormap
