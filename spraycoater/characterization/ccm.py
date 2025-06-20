@@ -1,10 +1,15 @@
+import matplotlib
 import numpy as np
 import pandas as pd
 import skimage as sk
 import matplotlib.pyplot as plt
 from matplotlib import patches
+from matplotlib.widgets import Slider, Button
 from scipy.stats import linregress
 import json
+
+matplotlib.use('Qt5Agg')
+
 
 
 def plot_map(map, bar):
@@ -20,12 +25,63 @@ def detect_references(count_map, ref_loadings):
     # Smooth map to remove noise and normalize the image
     smoothed_map = sk.filters.gaussian(count_map)
     normalized = (smoothed_map - smoothed_map.min()) / (np.ptp(smoothed_map))
-
-    fig, ax = plot_map(normalized, "counts")
-    fig.show()
+    binary = (normalized >= (1 / 100)).astype(np.uint8)
 
     # Edge detection
     edge_map = sk.feature.canny(normalized, sigma=1)
+
+    # Display edges and normalized map
+    fig, (norm_ax, bin_ax) = plt.subplots(1, 2, figsize=(8, 4))
+    fig.subplots_adjust(bottom=0.25)
+    im_norm = norm_ax.imshow(normalized, cmap='cool')
+    norm_ax.axis('off')
+    norm_ax.set_title('Normalized Heatmap')
+    fig.colorbar(im_norm, label='Normalized Heatmap')
+
+    im_binary = bin_ax.imshow(edge_map, cmap='cool')
+    bin_ax.axis('off')
+    bin_ax.set_title('Binary Heatmap')
+
+    initial_threshold = 0.5
+
+    # Define axes for the slider and button
+    ax_slider = plt.axes([0.25, 0.1, 0.5, 0.03])
+    ax_button = plt.axes([0.8, 0.1, 0.1, 0.04])
+
+    # Create the slider
+    # The range is 0-255 because our sample image is uint8
+    slider = Slider(
+        ax=ax_slider,
+        label='Threshold',
+        valmin=0,
+        valmax=1,
+        valinit=initial_threshold,
+        valstep=0.01
+    )
+
+    # Create the button
+    button = Button(ax_button, 'Accept', hovercolor='0.975')
+
+    def update(val):
+        """Callback function for the slider."""
+        threshold = slider.val
+        # Update the binary image data
+        im_binary.set_data(sk.feature.canny(normalized > threshold, sigma=1))
+        # Update the title
+        bin_ax.set_title(f'Binary Image (Threshold = {threshold})')
+        # Redraw the canvas
+        fig.canvas.draw_idle()
+
+    def accept(event):
+        """Callback function for the button."""
+        print(f"\nThreshold accepted: {slider.val}")
+        plt.close(fig)  # Close the interactive window
+
+    # Connect the widgets to their callback functions
+    slider.on_changed(update)
+    button.on_clicked(accept)
+
+    plt.show(block=True)
 
     # Circle transform detection
     circle_radii = np.arange(40, 60, 1)  # Try circles with radii 40-60px
@@ -64,7 +120,7 @@ def circular_mask(shape, center, radius):
 
 def main():
     # Create dataframe and numpy array of counts data
-    counts_df = pd.read_csv("in/count_map.txt", sep=';', header=None)
+    counts_df = pd.read_csv("in/count_map2.txt", sep=';', header=None)
     count_map = counts_df.to_numpy()
 
     # 22.3, 60, 102.8
@@ -81,7 +137,7 @@ def main():
     for reference in references:
         ax.add_patch(patches.Circle(reference['pos'], radius=reference['radius'], color='red', fill=False))
     fig.tight_layout()
-    fig.show()
+    plt.show(block=True)
 
     pass
 
